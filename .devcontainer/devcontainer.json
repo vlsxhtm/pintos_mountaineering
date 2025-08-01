@@ -1,4 +1,4 @@
-1{
+{
   "name": "pintos-dev",
   "dockerFile": "Dockerfile",
   "remoteUser": "jungle",
