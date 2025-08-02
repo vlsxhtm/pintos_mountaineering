@@ -29,6 +29,9 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
+
+struct lock exec_lock;
+
 /**
  현재 스레드의 자식 프로세스 중에서 특정 PID를 가진 자식을 찾는 함수
  */
@@ -52,6 +55,7 @@ struct thread *get_child_with_pid(tid_t pid) {
 /* General process initializer for initd and other process. */
 static void process_init(void) {
     struct thread *current = thread_current();
+    lock_init(&exec_lock);
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -312,7 +316,7 @@ int process_exec(void *f_name) {
 
         arg_list[arg_cnt++] = arg;
     }
-
+    lock_acquire(&exec_lock);
     // 파싱된 인자가 없으면 로드 실패 처리
     if (arg_cnt == 0) {
         success = false;
@@ -324,9 +328,10 @@ int process_exec(void *f_name) {
     if (!success) {
         palloc_free_page(buffer);
         palloc_free_page(f_name);
+        lock_release(&exec_lock);
         return -1;
     }
-
+    lock_release(&exec_lock);
     argument_stack(arg_list, arg_cnt, &_if, buffer);
 
     // 모든 임시 메모리를 해제
@@ -426,7 +431,7 @@ void process_exit(void) {
         sema_down(&curr->exit_sema);
     }
 
-     process_cleanup();
+    process_cleanup();
 }
 
 /* Free the current process's resources. */
