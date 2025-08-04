@@ -158,9 +158,15 @@ uint64_t hash_hash_func(const struct hash_elem *e, void *aux) {
     return hash_bytes(&p->va, sizeof p->va);
 }
 
+bool hash_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+    struct page *ap = hash_entry(a, struct page, hash_elem);
+    struct page *bp = hash_entry(b, struct page, hash_elem);
+    return ap->va < bp->va;
+}
+
 /* Initialize new supplemental page table */
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED) {
-    // hash_init(spt, hash_hash_func, );
+    hash_init(spt, hash_hash_func, hash_less_func, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
