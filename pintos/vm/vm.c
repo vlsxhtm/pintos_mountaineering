@@ -60,9 +60,16 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
     struct page *page = NULL;
-    /* TODO: Fill this function. */
 
-    return page;
+    /* TODO: Fill this function. */
+    if (va == NULL || spt == NULL) {
+        return NULL;
+    }
+
+    struct page fake_page;
+    fake_page.va = va;
+
+    return hash_entry(hash_find(&spt->spt_hash, &fake_page.hash_elem), struct page, hash_elem);
 }
 
 /* Insert PAGE into spt with validation. */
