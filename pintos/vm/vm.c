@@ -74,10 +74,18 @@ struct page *spt_find_page(struct supplemental_page_table *spt UNUSED, void *va 
 
 /* Insert PAGE into spt with validation. */
 bool spt_insert_page(struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
-    int succ = false;
-    /* TODO: Fill this function. */
+    if (spt == NULL) {
+        return false;
+    }
 
-    return succ;
+    if (spt_find_page(spt, page->va) != NULL) {
+        return false;
+    }
+
+    /* TODO: Fill this function. */
+    hash_insert(&spt->spt_hash, &page->hash_elem);
+
+    return true;
 }
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page) {
