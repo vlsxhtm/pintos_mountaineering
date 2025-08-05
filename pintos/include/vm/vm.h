@@ -45,6 +45,9 @@ struct page {
 struct frame {
     void *kva;
     struct page *page;
+
+    // frame_table Push 및 페이지 교체 알고리즘을 적용하기 위해 추가함
+    struct list_elem elem;
 };
 
 /* The function table for page operations.
