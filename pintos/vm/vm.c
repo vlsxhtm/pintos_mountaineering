@@ -61,36 +61,42 @@ err:
 struct page *spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
     struct page *page = NULL;
 
-    /* TODO: Fill this function. */
     if (va == NULL || spt == NULL) {
         return NULL;
     }
 
     struct page fake_page;
     fake_page.va = va;
+    struct hash_elem *elem = hash_find(&spt->spt_hash, &fake_page.hash_elem);
 
-    return hash_entry(hash_find(&spt->spt_hash, &fake_page.hash_elem), struct page, hash_elem);
+    if (elem == NULL) {
+        return NULL;
+    }
+    return hash_entry(elem, struct page, hash_elem);
 }
 
 /* Insert PAGE into spt with validation. */
 bool spt_insert_page(struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
-    if (spt == NULL) {
+    if (spt == NULL || page == NULL) {
         return false;
     }
 
     if (spt_find_page(spt, page->va) != NULL) {
         return false;
     }
-
-    /* TODO: Fill this function. */
-    hash_insert(&spt->spt_hash, &page->hash_elem);
-
-    return true;
+    /**
+     * hash_insert를 보면  내부에서 먼저 값을 찾고 없으면 NULL을 리턴한다(old_ptr 부분)
+     * 즉 삽입 성공하면 리턴값이 NULL 아니면 이전에 기록된 ptr을 가져온다.
+     */
+    return hash_insert(&spt->spt_hash, &page->hash_elem) == NULL;
 }
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page) {
+    if (spt == NULL || page == NULL) {
+        return;
+    }
+    hash_delete(&spt->spt_hash, &page->hash_elem);
     vm_dealloc_page(page);
-    return true;
 }
 
 /* Get the struct frame, that will be evicted. */
