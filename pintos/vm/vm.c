@@ -2,8 +2,12 @@
 
 #include "vm/vm.h"
 
+#include "list.h"
 #include "threads/malloc.h"
 #include "vm/inspect.h"
+
+struct list frame_table;
+struct lock frame_table_lock;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -16,6 +20,7 @@ void vm_init(void) {
     register_inspect_intr();
     /* DO NOT MODIFY UPPER LINES. */
     /* TODO: Your code goes here. */
+    list_init(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -112,7 +117,7 @@ static struct frame *vm_get_victim(void) {
 static struct frame *vm_evict_frame(void) {
     struct frame *victim UNUSED = vm_get_victim();
     /* TODO: swap out the victim and return the evicted frame. */
-
+    swap_out(victim->page);
     return NULL;
 }
 
@@ -121,11 +126,22 @@ static struct frame *vm_evict_frame(void) {
  * memory is full, this function evicts the frame to get the available memory
  * space.*/
 static struct frame *vm_get_frame(void) {
-    struct frame *frame = NULL;
-    /* TODO: Fill this function. */
+    struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
 
     ASSERT(frame != NULL);
     ASSERT(frame->page == NULL);
+
+    frame->kva = palloc_get_page(PAL_USER);
+    if (frame->kva == NULL) {
+        frame = vm_evict_frame();
+        frame->page = NULL;
+        return frame;
+    }
+
+    lock_acquire(&frame_table_lock);
+    list_push_back(&frame_table, &frame->elem);
+    lock_release(&frame_table_lock);
+
     return frame;
 }
 
