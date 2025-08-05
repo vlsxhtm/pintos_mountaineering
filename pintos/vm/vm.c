@@ -3,11 +3,13 @@
 #include "vm/vm.h"
 
 #include "list.h"
+#include "mmu.h"
 #include "threads/malloc.h"
 #include "vm/inspect.h"
 
-struct list frame_table;
-struct lock frame_table_lock;
+static struct list frame_table;
+static struct lock frame_table_lock;
+static struct list_elem *clock_hand = NULL;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -93,6 +95,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED, struct page *pa
      * hash_insert를 보면  내부에서 먼저 값을 찾고 없으면 NULL을 리턴한다(old_ptr 부분)
      * 즉 삽입 성공하면 리턴값이 NULL 아니면 이전에 기록된 ptr을 가져온다.
      */
+    page->owner = thread_current();  // 교체 알고리즘에서 pml4 검사할 때 사용하는 역참조용 객체
     return hash_insert(&spt->spt_hash, &page->hash_elem) == NULL;
 }
 
@@ -104,10 +107,46 @@ void spt_remove_page(struct supplemental_page_table *spt, struct page *page) {
     vm_dealloc_page(page);
 }
 
+// 시계 방향으로 돌기 위함
+void advance_clock_hand() {
+    clock_hand = list_next(clock_hand);
+    if (clock_hand == list_end(&frame_table)) {
+        clock_hand = list_begin(&frame_table);
+    }
+}
+
 /* Get the struct frame, that will be evicted. */
 static struct frame *vm_get_victim(void) {
     struct frame *victim = NULL;
-    /* TODO: The policy for eviction is up to you. */
+
+    lock_acquire(&frame_table);
+
+    if (list_empty(&frame_table)) {
+        lock_release(&frame_table_lock);
+        return NULL;
+    }
+
+    if (clock_hand == NULL) {
+        clock_hand = list_begin(&frame_table);
+    }
+
+    while (true) {
+        struct frame *f = list_entry(clock_hand, struct frame, elem);
+        void *va = f->page->va;
+        struct thread *t = f->page->owner;
+        uint64_t *pml4 = t->pml4;
+
+        if (pml4_is_accessed(pml4, va)) {
+            pml4_set_accessed(pml4, va, false);
+            advance_clock_hand();
+        } else {
+            victim = f;
+            advance_clock_hand();
+            break;
+        }
+    }
+
+    lock_release(&frame_table);
 
     return victim;
 }
