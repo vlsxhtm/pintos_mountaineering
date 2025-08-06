@@ -252,15 +252,22 @@ bool vm_claim_page(void *va UNUSED) {
 static bool vm_do_claim_page(struct page *page) {
     struct frame *frame = vm_get_frame();
 
+    // 페이지 할당 실패.....
+    if (frame == NULL) {
+        return false;
+    }
+
     /* Set links */
     frame->page = page;
     page->frame = frame;
 
-    /* TODO: Insert page table entry to map page's VA to frame's PA. */
+    /* 사용자 가상 주소를 커널 주소 맵핑 */
+    if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable)) {
+        return false;
+    }
 
     return swap_in(page, frame->kva);
 }
-
 uint64_t hash_page_func(const struct hash_elem *e, void *aux) {
     struct page *p = hash_entry(e, struct page, hash_elem);
     return hash_bytes(&p->va, sizeof p->va);
