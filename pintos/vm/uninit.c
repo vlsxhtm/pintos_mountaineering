@@ -39,6 +39,10 @@ void uninit_new(struct page *page, void *va, vm_initializer *init, enum vm_type 
                           }};
 }
 
+bool fragment_uninit_initialize(struct page *page, void *kva) {
+    return uninit_initialize(page, kva);
+}
+
 /* Initalize the page on first fault */
 static bool uninit_initialize(struct page *page, void *kva) {
     struct uninit_page *uninit = &page->uninit;

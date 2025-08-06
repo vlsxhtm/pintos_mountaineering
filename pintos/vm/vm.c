@@ -2,9 +2,12 @@
 
 #include "vm/vm.h"
 
+#include "anon.h"
+#include "file.h"
 #include "list.h"
 #include "mmu.h"
 #include "threads/malloc.h"
+#include "uninit.h"
 #include "vm/inspect.h"
 
 static struct list frame_table;
@@ -57,8 +60,32 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
         /* TODO: Create the page, fetch the initialier according to the VM type,
          * TODO: and then create "uninit" page struct by calling uninit_new. You
          * TODO: should modify the field after calling the uninit_new. */
+        // anon_initializer -> 익명 페이지 1
+        // uninit_initialize -> 0
+        // file_backed_initializer -> 2
+        struct page *p = (struct page *)malloc(sizeof(struct page));
+        p->va = upage;
+
+        switch (type) {
+            case VM_UNINIT:
+                uninit_new(p, p->va, init, type, aux, fragment_uninit_initialize);
+                break;
+            case VM_ANON:
+                uninit_new(p, p->va, init, type, aux, anon_initializer);
+                break;
+            case VM_FILE:
+                uninit_new(p, p->va, init, type, aux, file_backed_initializer);
+                break;
+            case VM_PAGE_CACHE:
+                PANIC("쌈@뽕하게 Proj4는 무시");
+                break;
+            default:
+                PANIC("undefined vm_type SH@IT");
+                break;
+        }
 
         /* TODO: Insert the page into the spt. */
+        return spt_insert_page(spt, p);
     }
 err:
     return false;
