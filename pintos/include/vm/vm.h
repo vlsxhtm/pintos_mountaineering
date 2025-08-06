@@ -27,8 +27,12 @@ struct page {
     void *va;            /* Address in terms of user space */
     struct frame *frame; /* Back reference for frame */
 
-    /* Your implementation */
+    // Supplement table에서 사용함
     struct hash_elem hash_elem;
+
+    // 역참조용
+    struct thread *owner;
+
     /* Per-type data are binded into the union.
      * Each function automatically detects the current union */
     union {
