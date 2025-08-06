@@ -3,6 +3,7 @@
 #include "vm/vm.h"
 
 #include "anon.h"
+#include "disk.h"
 #include "file.h"
 #include "list.h"
 #include "mmu.h"
@@ -26,6 +27,7 @@ void vm_init(void) {
     /* DO NOT MODIFY UPPER LINES. */
     /* TODO: Your code goes here. */
     list_init(&frame_table);
+    disk_init();  // vm_anon_init()에서 swap 영역 지정할 때 사용하기 위해서 여기서 초기화함
 }
 
 /* Get the type of the page. This function is useful if you want to know the
