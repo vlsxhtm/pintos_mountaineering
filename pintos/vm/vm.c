@@ -65,6 +65,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
         // file_backed_initializer -> 2
         struct page *page = (struct page *)malloc(sizeof(struct page));
 
+        /* 포인터 타입 함수 */
         typedef bool (*initializerFunc)(struct page *, enum vm_type, void *);
         initializerFunc initializer = NULL;
 
