@@ -3,6 +3,7 @@
 #include "vm/vm.h"
 
 #include "anon.h"
+#include "disk.h"
 #include "file.h"
 #include "list.h"
 #include "mmu.h"
@@ -26,6 +27,7 @@ void vm_init(void) {
     /* DO NOT MODIFY UPPER LINES. */
     /* TODO: Your code goes here. */
     list_init(&frame_table);
+    disk_init();  // vm_anon_init()에서 swap 영역 지정할 때 사용하기 위해서 여기서 초기화함
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -67,15 +69,16 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
         p->writable = writable;
         p->va = upage;
 
-        switch (type) {
-            case VM_UNINIT:
-                uninit_new(p, p->va, init, type, aux, fragment_uninit_initialize);
-                break;
+        /* 포인터 타입 함수 */
+        typedef bool (*initializerFunc)(struct page *, enum vm_type, void *);
+        initializerFunc initializer = NULL;
+
+        switch (VM_TYPE(type)) {
             case VM_ANON:
-                uninit_new(p, p->va, init, type, aux, anon_initializer);
+                initializer = anon_initializer;
                 break;
             case VM_FILE:
-                uninit_new(p, p->va, init, type, aux, file_backed_initializer);
+                initializer = file_backed_initializer;
                 break;
             case VM_PAGE_CACHE:
                 PANIC("쌈@뽕하게 Proj4는 무시");
@@ -85,8 +88,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
                 break;
         }
 
+        uninit_new(page, upage, init, type, aux, initializer);
+
         /* TODO: Insert the page into the spt. */
-        return spt_insert_page(spt, p);
+        return spt_insert_page(spt, page);
     }
 err:
     return false;
