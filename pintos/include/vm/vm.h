@@ -32,7 +32,8 @@ struct page {
 
     // 역참조용
     struct thread *owner;
-
+    // 수정 가능한 여부
+    bool writable;
     /* Per-type data are binded into the union.
      * Each function automatically detects the current union */
     union {
