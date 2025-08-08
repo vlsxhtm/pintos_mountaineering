@@ -65,18 +65,18 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
         // anon_initializer -> 익명 페이지 1
         // uninit_initialize -> 0
         // file_backed_initializer -> 2
-        struct page *p = (struct page *)malloc(sizeof(struct page));
-        p->va = upage;
+        struct page *page = (struct page *)malloc(sizeof(struct page));
 
-        switch (type) {
-            case VM_UNINIT:
-                uninit_new(p, p->va, init, type, aux, fragment_uninit_initialize);
-                break;
+        /* 포인터 타입 함수 */
+        typedef bool (*initializerFunc)(struct page *, enum vm_type, void *);
+        initializerFunc initializer = NULL;
+
+        switch (VM_TYPE(type)) {
             case VM_ANON:
-                uninit_new(p, p->va, init, type, aux, anon_initializer);
+                initializer = anon_initializer;
                 break;
             case VM_FILE:
-                uninit_new(p, p->va, init, type, aux, file_backed_initializer);
+                initializer = file_backed_initializer;
                 break;
             case VM_PAGE_CACHE:
                 PANIC("쌈@뽕하게 Proj4는 무시");
@@ -86,8 +86,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
                 break;
         }
 
+        uninit_new(page, upage, init, type, aux, initializer);
+
         /* TODO: Insert the page into the spt. */
-        return spt_insert_page(spt, p);
+        return spt_insert_page(spt, page);
     }
 err:
     return false;
