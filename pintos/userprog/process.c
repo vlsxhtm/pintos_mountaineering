@@ -824,17 +824,25 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
         /* TODO: Set up aux to pass information to the lazy_load_segment. */
         // struct lazy_segment_arg *aux = {file, ofs, page_read_bytes, page_zero_bytes};
         struct lazy_segment_arg *aux = malloc(sizeof(struct lazy_segment_arg));
+
+        if (!aux)
+            return false;
+
         aux->file = file;
-        aux->off_t = ofs;
+        aux->ofs = ofs;
         aux->page_read_bytes = page_read_bytes;
         aux->page_zero_bytes = page_zero_bytes;
-        if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux))
+
+        if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux)) {
+            free(aux);
             return false;
+        }
 
         /* Advance. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         upage += PGSIZE;
+        ofs += page_read_bytes;
     }
     return true;
 }

@@ -20,7 +20,7 @@ struct thread;
 
 struct lazy_segment_arg {
     struct file *file;
-    off_t off_t;
+    off_t ofs;
     uint32_t page_read_bytes;
     uint32_t page_zero_bytes;
 };
