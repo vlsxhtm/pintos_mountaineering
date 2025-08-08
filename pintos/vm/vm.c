@@ -64,6 +64,7 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
         // uninit_initialize -> 0
         // file_backed_initializer -> 2
         struct page *p = (struct page *)malloc(sizeof(struct page));
+        p->writable = writable;
         p->va = upage;
 
         switch (type) {
