@@ -2,14 +2,14 @@
 
 #include "vm/vm.h"
 
-#include "anon.h"
-#include "disk.h"
-#include "file.h"
-#include "list.h"
-#include "mmu.h"
+#include "devices/disk.h"
+#include "kernel/list.h"
 #include "threads/malloc.h"
-#include "uninit.h"
+#include "threads/mmu.h"
+#include "vm/anon.h"
+#include "vm/file.h"
 #include "vm/inspect.h"
+#include "vm/uninit.h"
 
 static struct list frame_table;
 static struct lock frame_table_lock;
@@ -88,10 +88,10 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
                 break;
         }
 
-        uninit_new(page, upage, init, type, aux, initializer);
+        uninit_new(p, upage, init, type, aux, initializer);
 
         /* TODO: Insert the page into the spt. */
-        return spt_insert_page(spt, page);
+        return spt_insert_page(spt, p);
     }
 err:
     return false;
