@@ -24,10 +24,14 @@ void vm_init(void) {
     pagecache_init();
 #endif
     register_inspect_intr();
+
     /* DO NOT MODIFY UPPER LINES. */
     /* TODO: Your code goes here. */
+
     list_init(&frame_table);
-    disk_init();  // vm_anon_init()에서 swap 영역 지정할 때 사용하기 위해서 여기서 초기화함
+    lock_init(&frame_table_lock);
+    clock_hand = NULL;
+    // disk_init();  // vm_anon_init()에서 swap 영역 지정할 때 사용하기 위해서 여기서 초기화함
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -106,7 +110,7 @@ struct page *spt_find_page(struct supplemental_page_table *spt UNUSED, void *va 
     }
 
     struct page fake_page;
-    fake_page.va = va;
+    fake_page.va = pg_round_down(va);
     struct hash_elem *elem = hash_find(&spt->spt_hash, &fake_page.hash_elem);
 
     if (elem == NULL) {
@@ -152,7 +156,7 @@ void advance_clock_hand() {
 static struct frame *vm_get_victim(void) {
     struct frame *victim = NULL;
 
-    lock_acquire(&frame_table);
+    lock_acquire(&frame_table_lock);
 
     if (list_empty(&frame_table)) {
         lock_release(&frame_table_lock);
@@ -179,18 +183,28 @@ static struct frame *vm_get_victim(void) {
         }
     }
 
-    lock_release(&frame_table);
+    lock_release(&frame_table_lock);
 
     return victim;
 }
 
 /* Evict one page and return the corresponding frame.
  * Return NULL on error.*/
+
 static struct frame *vm_evict_frame(void) {
-    struct frame *victim UNUSED = vm_get_victim();
-    /* TODO: swap out the victim and return the evicted frame. */
-    swap_out(victim->page);
-    return NULL;
+    struct frame *victim = vm_get_victim();
+    if (victim == NULL || victim->page == NULL) {
+        return NULL;
+    }
+
+    struct page *p = victim->page;
+    struct thread *t = p->owner;
+
+    swap_out(p);
+    pml4_clear_page(t->pml4, p->va);
+    p->frame = NULL;
+    victim->page = NULL;
+    return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -201,11 +215,13 @@ static struct frame *vm_get_frame(void) {
     struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
 
     ASSERT(frame != NULL);
-    ASSERT(frame->page == NULL);
+    frame->page = NULL;
 
     frame->kva = palloc_get_page(PAL_USER);
     if (frame->kva == NULL) {
         frame = vm_evict_frame();
+        if (frame == NULL)
+            return NULL;
         frame->page = NULL;
         return frame;
     }
@@ -224,13 +240,24 @@ static void vm_stack_growth(void *addr UNUSED) {}
 static bool vm_handle_wp(struct page *page UNUSED) {}
 
 /* Return true on success */
-bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED, bool user UNUSED,
-                         bool write UNUSED, bool not_present UNUSED) {
-    struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-    struct page *page = NULL;
-    /* TODO: Validate the fault */
-    /* TODO: Your code goes here */
+bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write,
+                         bool not_present) {
+    void *va = pg_round_down(addr);
+    struct supplemental_page_table *spt = &thread_current()->spt;
+    struct page *page = spt_find_page(spt, va);
 
+    if (page == NULL) {
+        // TODO: stack_growth 용
+        return false;
+    }
+    if (write && !page->writable) {
+        return false;
+    }
+
+    if (!not_present) {
+        // TODO:cow 용
+        return false;
+    }
     return vm_do_claim_page(page);
 }
 
@@ -287,7 +314,7 @@ bool page_less_func(const struct hash_elem *a, const struct hash_elem *b, void *
 
 /* Initialize new supplemental page table */
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED) {
-    hash_init(spt, hash_page_func, page_less_func, NULL);
+    hash_init(&spt->spt_hash, hash_page_func, page_less_func, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
