@@ -215,6 +215,7 @@ static struct frame *vm_get_frame(void) {
     struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
 
     ASSERT(frame != NULL);
+    ASSERT(frame->page == NULL);
     frame->page = NULL;
 
     frame->kva = palloc_get_page(PAL_USER);
