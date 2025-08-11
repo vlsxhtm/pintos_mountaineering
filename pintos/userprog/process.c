@@ -431,6 +431,8 @@ void process_exit(void) {
         sema_down(&curr->exit_sema);
     }
 
+    supplemental_page_table_kill(&thread_current()->spt);
+
     process_cleanup();
 }
 
