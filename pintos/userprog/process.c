@@ -859,10 +859,15 @@ static bool setup_stack(struct intr_frame *if_) {
     bool success = false;
     void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
-    /* TODO: Map the stack on stack_bottom and claim the page immediately.
-     * TODO: If success, set the rsp accordingly.
-     * TODO: You should mark the page is stack. */
-    /* TODO: Your code goes here */
+    /* stack_bottom에 스택을 매핑하고 페이지를 할당(claim)합니다. & 비트마킹 이용해서 마킹 한다*/
+    if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, true, NULL, NULL)) {
+        success = vm_claim_page(stack_bottom);
+        /*할당 성공시에, rsp를 그에 맞게 셋업한다*/
+        if (success) {
+            if_->rsp = USER_STACK;
+            thread_current()->stack_bottom = stack_bottom;
+        }
+    }
 
     return success;
 }
