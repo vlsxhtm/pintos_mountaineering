@@ -5,6 +5,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "vm/vm.h"
+#include "vm/vm_enum.h"
 #ifndef BLOCK_SECTOR_SIZE
 #define BLOCK_SECTOR_SIZE 512
 #endif
@@ -51,7 +52,7 @@ void vm_anon_init(void) {
 
 /* Initialize the file mapping */
 bool anon_initializer(struct page *page, enum vm_type type, void *kva) {
-    ASSERT(page != NULL && vm_type == VM_ANON);
+    ASSERT(page != NULL && VM_TYPE(type) == VM_ANON);
 
     // 페이지 메소드 추가
     page->operations = &anon_ops;
