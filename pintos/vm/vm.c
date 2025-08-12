@@ -344,7 +344,7 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 
         // uninit.type 안에 특수 마커 플래그 VM_MARKER_0이 켜져 있느냐를 확인하는 거임
         if (parent_page->uninit.type & VM_MARKER_0) {
-            setup_stack(&thread_current()->tf);
+            // setup_stack(&thread_current()->tf);
             // 부모 페이지가 uninit 상태 일 때 실제 프레임은 없고, fault 때 로드될 예정임
         } else if (parent_page->operations->type == VM_UNINIT) {
             // 나중에 fault 나면 이렇게 채워라 하는 거임
