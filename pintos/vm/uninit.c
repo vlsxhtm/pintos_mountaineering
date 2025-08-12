@@ -61,6 +61,22 @@ static bool uninit_initialize(struct page *page, void *kva) {
  * PAGE will be freed by the caller. */
 static void uninit_destroy(struct page *page) {
     struct uninit_page *uninit UNUSED = &page->uninit;
-    /* TODO: Fill this function.
-     * TODO: If you don't have anything to do, just return. */
+
+    ASSERT(page->frame == NULL);
+
+    if (page->uninit.aux == NULL) {
+        return;
+    }
+
+    /* page free 금지, vm_dealloc_page()금지 ㅜ*/
+    switch (VM_TYPE(page_get_type(page))) {
+        case VM_ANON:
+            palloc_free_page(page);
+            break;
+        case VM_FILE:
+
+            break;
+        default:
+            page->uninit.aux = NULL;
+    }
 }
