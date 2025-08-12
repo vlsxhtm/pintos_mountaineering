@@ -305,7 +305,10 @@ int process_exec(void *f_name) {
 
     /* We first kill the current context */
     process_cleanup();
+#ifdef VM
 
+    supplemental_page_table_init(&thread_current()->spt);
+#endif
     char *ptr, *arg;
     int arg_cnt = 0;
 
@@ -430,8 +433,6 @@ void process_exit(void) {
         /* 부모가 자식 정리를 완료할 때까지 대기 */
         sema_down(&curr->exit_sema);
     }
-
-    supplemental_page_table_kill(&thread_current()->spt);
 
     process_cleanup();
 }
@@ -796,10 +797,12 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: VA is available when calling this function. */
     struct lazy_segment_arg *lazy_segment = (struct lazy_segment_arg *)aux;
     file_seek(lazy_segment->file, lazy_segment->ofs);
-    file_read(lazy_segment->file, page->frame->kva, lazy_segment->ofs);
+    if (file_read(lazy_segment->file, page->frame->kva, lazy_segment->page_read_bytes) != (int)lazy_segment->page_read_bytes) {
+        free(aux);
+        return false;
+    }
     memset(page->frame->kva + lazy_segment->page_read_bytes, 0, lazy_segment->page_zero_bytes);
     free(aux);
-
     return true;
 }
 
