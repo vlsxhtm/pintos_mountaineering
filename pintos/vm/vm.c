@@ -395,3 +395,4 @@ static void page_destroy_all(struct hash_elem *e, void *aux UNUSED) {
 
     /* dealloc을 해줌*/
     vm_dealloc_page(page);
+}
