@@ -383,16 +383,16 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
     return true;
 }
 
-/* Free the resource hold by the supplemental page table */
-void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED) {
-    /* TODO: Destroy all the supplemental_page_table hold by thread and
-     * TODO: writeback all the modified contents to the storage. */
-    hash_destroy(&spt->spt_hash, page_destroy_all);
-}
-
 static void page_destroy_all(struct hash_elem *e, void *aux UNUSED) {
     struct page *page = hash_entry(e, struct page, hash_elem);
 
     /* dealloc을 해줌*/
     vm_dealloc_page(page);
+}
+
+/* Free the resource hold by the supplemental page table */
+void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED) {
+    /* TODO: Destroy all the supplemental_page_table hold by thread and
+     * TODO: writeback all the modified contents to the storage. */
+    hash_destroy(&spt->spt_hash, page_destroy_all);
 }
