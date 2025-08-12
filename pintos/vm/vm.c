@@ -221,7 +221,6 @@ static struct frame *vm_get_frame(void) {
     struct frame *frame = (struct frame *)malloc(sizeof(struct frame));
 
     ASSERT(frame != NULL);
-    ASSERT(frame->page == NULL);
     frame->page = NULL;
 
     frame->kva = palloc_get_page(PAL_USER);
@@ -252,6 +251,12 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr, bool user, bool write
     void *va = pg_round_down(addr);
     struct supplemental_page_table *spt = &thread_current()->spt;
     struct page *page = spt_find_page(spt, va);
+    if (user && is_kernel_vaddr(addr)) {
+        return false;
+    }
+    if (addr < 0x400000 || (addr > USER_STACK)) {
+        return false;
+    }
 
     if (page == NULL) {
         // TODO: stack_growth 용

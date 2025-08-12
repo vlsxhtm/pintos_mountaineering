@@ -473,7 +473,7 @@ static bool check_address(void *addr) {
     if (is_kernel_vaddr(addr)) {
         return false;
     }
-
+#ifndef VM
     // 현재 스레드의 페이지 테이블에서 해당 주소가 매핑되어 있는지 확인
     struct thread *cur = thread_current();
     if (cur->pml4 == NULL) {
@@ -484,6 +484,6 @@ static bool check_address(void *addr) {
     if (page == NULL) {
         return false;
     }
-
+#endif
     return true;
 }
