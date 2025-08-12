@@ -2,12 +2,15 @@
 
 #include "vm/vm.h"
 
+#include <inttypes.h>
+
 #include "devices/disk.h"
 #include "kernel/hash.h"
 #include "kernel/list.h"
 #include "string.h"
 #include "threads/malloc.h"
 #include "threads/mmu.h"
+#include "threads/vaddr.h"
 #include "userprog/process.h"
 #include "vm/anon.h"
 #include "vm/file.h"
@@ -305,15 +308,19 @@ static bool vm_do_claim_page(struct page *page) {
 
     return swap_in(page, frame->kva);
 }
-uint64_t hash_page_func(const struct hash_elem *e, void *aux) {
+
+uint64_t hash_page_func(const struct hash_elem *e, void *aux UNUSED) {
     struct page *p = hash_entry(e, struct page, hash_elem);
-    return hash_bytes(&p->va, sizeof p->va);
+    void *key = pg_round_down(p->va);
+    return hash_bytes(&key, sizeof key);  // x86-64에선 8바이트
 }
 
-bool page_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux) {
+bool page_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED) {
     struct page *ap = hash_entry(a, struct page, hash_elem);
     struct page *bp = hash_entry(b, struct page, hash_elem);
-    return ap->va < bp->va;
+    uintptr_t av = (uintptr_t)pg_round_down(ap->va);
+    uintptr_t bv = (uintptr_t)pg_round_down(bp->va);
+    return av < bv;
 }
 
 /* Initialize new supplemental page table */
