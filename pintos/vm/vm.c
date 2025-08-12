@@ -3,9 +3,12 @@
 #include "vm/vm.h"
 
 #include "devices/disk.h"
+#include "kernel/hash.h"
 #include "kernel/list.h"
+#include "string.h"
 #include "threads/malloc.h"
 #include "threads/mmu.h"
+#include "userprog/process.h"
 #include "vm/anon.h"
 #include "vm/file.h"
 #include "vm/inspect.h"
@@ -291,8 +294,66 @@ void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED) {
 }
 
 /* Copy supplemental page table from src to dst */
+/*
+ * 이 함수는 자식이 부모의 실행 컨텍스트를 상속해야 할 때 사용된다.
+ * fork() 함수처럼 자식 프로세스가 생성될 때의 과정을 생각하면 더 이해하기 쉬울 것 같다.
+ * src의 각각 페이지를 반복하면서 dst의 엔트리에 정확하게 복사한다.
+ * 이 과정에서 초기화되지 않은 페이지들은 할당하고 바로 claim해야 한다.
+ */
 bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
-                                  struct supplemental_page_table *src UNUSED) {}
+                                  struct supplemental_page_table *src UNUSED) {
+    // hash_first/hash_next로 src->spt_hash의 모든 페이지 엔트리를 순회함
+    struct hash_iterator i;
+    hash_first(&i, &src->spt_hash);
+    while (hash_next(&i)) {
+        // 매 반복마다 아래와 같은 데이터를 꺼냄
+        struct page *parent_page = hash_entry(hash_cur(&i), struct page, hash_elem);
+        enum vm_type type = page_get_type(parent_page);   // 부모 페이지의 타입(ANON/FILE/UNIT 등)
+        void *upage = parent_page->va;                    // 가상주소
+        bool writable = parent_page->writable;            // 쓰기 가능 여부(페이지 권한)
+        vm_initializer *init = parent_page->uninit.init;  // UNINIT일 때 초기화 함수
+        void *aux = parent_page->uninit.aux;  // UNINIT일 때 보조 데이터 (레이지 세그먼트 용)
+
+        // uninit.type 안에 특수 마커 플래그 VM_MARKER_0이 켜져 있느냐를 확인하는 거임
+        if (parent_page->uninit.type & VM_MARKER_0) {
+            setup_stack(&thread_current()->tf);
+            // 부모 페이지가 uninit 상태 일 때 실제 프레임은 없고, fault 때 로드될 예정임
+        } else if (parent_page->operations->type == VM_UNINIT) {
+            // 나중에 fault 나면 이렇게 채워라 하는 거임
+            if (!vm_alloc_page_with_initializer(type, upage, writable, init, aux)) {
+                return false;
+            }
+            // 이미 물리 프레임이 있던 페이지일 경우
+        } else {
+            // 자식 SPT에 실제 타입 페이지 엔트리를 만듦
+            if (!vm_alloc_page(type, upage, writable)) {
+                return false;
+            }
+
+            // 자식 쪽에서 프레임을 즉시 할당하고 매핑함
+            if (!vm_claim_page(upage)) {
+                return false;
+            }
+        }
+
+        // 부모가 uninit 상태가 아니니까 부모 프레임에 실제 내용이 있을 때
+        if (parent_page->operations->type != VM_UNINIT) {
+            // 부모 프레임의 내용을 자식 프레임 kva로 그대로 복사함 (페이지 단위로)
+            // 그로인해 자식의 페이지 내용이 부모와 동일해짐
+            struct page *child_page = spt_find_page(dst, upage);
+            memcpy(child_page->frame->kva, parent_page->frame->kva, PGSIZE);
+        }
+    }
+
+    // 요약
+    // 1. 스택 마커면 스택 준비함
+    // 2. UNINIT이면 vm_alloc_page_with_initializer로 lazy 메타 복제
+    // 3. 그 외(이미 로드된 페이지)면 vm_alloc_page + vm_claim_page로 프레이 생성 후 memcpy로 내용
+    // 복제 (3번에 이어지는 내용인데;; 줄바꿈됨)
+    // 4. 모든 순회 끝나면 true 반환
+
+    return true;
+}
 
 /* Free the resource hold by the supplemental page table */
 void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED) {
