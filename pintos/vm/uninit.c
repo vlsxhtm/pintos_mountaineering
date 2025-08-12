@@ -59,13 +59,15 @@ static bool uninit_initialize(struct page *page, void *kva) {
  * to other page objects, it is possible to have uninit pages when the process
  * exit, which are never referenced during the execution.
  * PAGE will be freed by the caller. */
+/* page 자체를 지우는 것이 아니라, uninit 상태의 페이지가
+ * 내부적으로 들고 있던 리소스들을 정리해야 한다. */
 static void uninit_destroy(struct page *page) {
     struct uninit_page *uninit UNUSED = &page->uninit;
 
     ASSERT(page->frame == NULL);
 
-    if (page->uninit.aux == NULL) {
-        return;
+    if (page->uninit.aux != NULL) {
+        free(page->uninit.aux);
     }
 
     /* page free 금지, vm_dealloc_page()금지 ㅜ*/
