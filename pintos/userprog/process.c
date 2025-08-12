@@ -862,7 +862,7 @@ static bool setup_stack(struct intr_frame *if_) {
     void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
     /* stack_bottom에 스택을 매핑하고 페이지를 할당(claim)합니다. & 비트마킹 이용해서 마킹 한다*/
-    if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, true, NULL, NULL)) {
+    if (vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, 1)) {
         success = vm_claim_page(stack_bottom);
         /*할당 성공시에, rsp를 그에 맞게 셋업한다*/
         if (success) {
